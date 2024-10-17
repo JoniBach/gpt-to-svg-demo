@@ -1,57 +1,53 @@
 <script>
-	import { writable } from 'svelte/store';
 	import { env } from '$env/dynamic/public';
 
 	// Extract API key and URL from environment variables
 	const apiKey = env.PUBLIC_API_KEY;
 	const apiUrl = env.PUBLIC_API_URL;
 
-	// Stores to handle response data
-	let responseMessage = writable('');
-	let generatedPrompt = writable('');
-	let thumbnailUrl = writable('');
-	let imageDownloadUrl = writable('');
-	let svgDownloadUrl = writable('');
-	let gcodeDownloadUrl = writable('');
-	let zipDownloadUrl = writable('');
-	let progressMessage = writable('');
-	let isLoading = writable(false);
-	let errorDetails = writable('');
-	let startTime = writable('');
-	let finishTime = writable('');
+	// Variables to handle response data
+	let responseMessage = '';
+	let generatedPrompt = '';
+	let thumbnailUrl = '';
+	let imageDownloadUrl = '';
+	let svgDownloadUrl = '';
+	let gcodeDownloadUrl = '';
+	let zipDownloadUrl = '';
+	let progressMessage = '';
+	let isLoading = false;
+	let errorDetails = '';
+	let startTime = '';
+	let finishTime = '';
 
 	let conceptInput = '';
-	let isDarkMode = writable(false);
+	let isDarkMode = false;
 
 	// Load dark mode preference from local storage
 	if (typeof localStorage !== 'undefined') {
 		const savedTheme = localStorage.getItem('theme');
 		if (savedTheme === 'dark') {
-			isDarkMode.set(true);
+			isDarkMode = true;
 		}
 	}
 
 	const toggleTheme = () => {
-		isDarkMode.update((value) => {
-			const newValue = !value;
-			// Save the user's preference in local storage
-			if (typeof localStorage !== 'undefined') {
-				localStorage.setItem('theme', newValue ? 'dark' : 'light');
-			}
-			return newValue;
-		});
+		isDarkMode = !isDarkMode;
+		// Save the user's preference in local storage
+		if (typeof localStorage !== 'undefined') {
+			localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+		}
 	};
 
 	// Function to call the API
 	const generateImage = async () => {
-		isLoading.set(true);
-		progressMessage.set('Generating image, please wait...');
-		errorDetails.set('');
-		startTime.set(new Date().toLocaleTimeString());
-		finishTime.set('');
+		isLoading = true;
+		progressMessage = 'Generating image, please wait...';
+		errorDetails = '';
+		startTime = new Date().toLocaleTimeString();
+		finishTime = '';
 
 		try {
-			progressMessage.set('Sending request to generate the image...');
+			progressMessage = 'Sending request to generate the image...';
 
 			const response = await fetch(apiUrl, {
 				method: 'POST',
@@ -66,48 +62,48 @@
 			if (!response.ok) {
 				const errorText = await response.text();
 				console.error('API Error:', errorText);
-				responseMessage.set('Error: ' + response.status + ' - ' + errorText);
-				progressMessage.set('Failed to generate image. Please try again.');
-				errorDetails.set(`Status Code: ${response.status}, Error Text: ${errorText}`);
-				isLoading.set(false);
-				startTime.set('');
+				responseMessage = 'Error: ' + response.status + ' - ' + errorText;
+				progressMessage = 'Failed to generate image. Please try again.';
+				errorDetails = `Status Code: ${response.status}, Error Text: ${errorText}`;
+				isLoading = false;
+				startTime = '';
 
 				return;
 			}
 
-			progressMessage.set('Processing the response...');
+			progressMessage = 'Processing the response...';
 			const data = await response.json();
 
-			progressMessage.set('Updating the UI with the generated image links...');
-			responseMessage.set(data.message);
-			generatedPrompt.set(data.prompt);
-			thumbnailUrl.set(data.thumbnail);
-			imageDownloadUrl.set(data.image_download_url);
-			svgDownloadUrl.set(data.svg_download_url);
-			gcodeDownloadUrl.set(data.gcode_download_url);
-			zipDownloadUrl.set(data.zip_download_url);
+			progressMessage = 'Updating the UI with the generated image links...';
+			responseMessage = data.message;
+			generatedPrompt = data.prompt;
+			thumbnailUrl = data.thumbnail;
+			imageDownloadUrl = data.image_download_url;
+			svgDownloadUrl = data.svg_download_url;
+			gcodeDownloadUrl = data.gcode_download_url;
+			zipDownloadUrl = data.zip_download_url;
 
-			progressMessage.set('Image generation complete!');
-			finishTime.set(new Date().toLocaleTimeString());
-			isLoading.set(false);
+			progressMessage = 'Image generation complete!';
+			finishTime = new Date().toLocaleTimeString();
+			isLoading = false;
 		} catch (error) {
 			console.error('Network Error:', error);
-			responseMessage.set('A network error occurred while generating the image.');
-			progressMessage.set('Network error occurred. Please check your connection.');
-			errorDetails.set(`Network Error: ${error.message}`);
-			isLoading.set(false);
-			startTime.set('');
+			responseMessage = 'A network error occurred while generating the image.';
+			progressMessage = 'Network error occurred. Please check your connection.';
+			errorDetails = `Network Error: ${error.message}`;
+			isLoading = false;
+			startTime = '';
 		}
 	};
 </script>
 
-<div class={$isDarkMode ? 'dark' : 'light'}>
+<div class={isDarkMode ? 'dark' : 'light'}>
 	<div class="container">
 		<header>
 			<div class="header-content">
 				<h1>Image Generation API</h1>
 				<button class="theme-toggle" on:click={toggleTheme}>
-					{$isDarkMode ? '🌞 Light Mode' : '🌙 Dark Mode'}
+					{isDarkMode ? '🌞 Light Mode' : '🌙 Dark Mode'}
 				</button>
 			</div>
 		</header>
@@ -119,78 +115,78 @@
 					placeholder="Enter your concept..."
 					bind:value={conceptInput}
 					class="concept-input"
-					disabled={$isLoading}
+					disabled={isLoading}
 				/>
-				<button on:click={generateImage} class="generate-button" disabled={$isLoading}>
-					{$isLoading ? 'Generating...' : 'Generate Image'}
+				<button on:click={generateImage} class="generate-button" disabled={isLoading}>
+					{isLoading ? 'Generating...' : 'Generate Image'}
 				</button>
 			</div>
 
 			<!-- Loading Marker -->
-			{#if $isLoading}
+			{#if isLoading}
 				<p class="loading">This could take a minute...</p>
 			{/if}
 
 			<div class="response-container">
-				{#if $responseMessage}
+				{#if responseMessage}
 					<h2>Response</h2>
 					<p>
-						{$responseMessage}
-						{#if $startTime && $finishTime}
+						{responseMessage}
+						{#if startTime && finishTime}
 							in {Math.round(
-								(new Date(`1970-01-01T${$finishTime}Z`) - new Date(`1970-01-01T${$startTime}Z`)) /
+								(new Date(`1970-01-01T${finishTime}Z`) - new Date(`1970-01-01T${startTime}Z`)) /
 									1000
 							)} seconds
 						{/if}
 					</p>
 				{/if}
 
-				{#if $errorDetails}
+				{#if errorDetails}
 					<div class="error-details">
-						<p><strong>Error Details:</strong> {$errorDetails}</p>
+						<p><strong>Error Details:</strong> {errorDetails}</p>
 					</div>
 				{/if}
 
-				{#if $generatedPrompt}
-					<p><strong>Description:</strong> {$generatedPrompt}</p>
+				{#if generatedPrompt}
+					<p><strong>Description:</strong> {generatedPrompt}</p>
 				{/if}
 
 				<div class="preview">
-					{#if $thumbnailUrl}
-						<img src={$thumbnailUrl} alt="Generated Thumbnail" class="thumbnail" />
+					{#if thumbnailUrl}
+						<img src={thumbnailUrl} alt="Generated Thumbnail" class="thumbnail" />
 					{/if}
 					<div class="download-container">
-						{#if $imageDownloadUrl}
+						{#if imageDownloadUrl}
 							<button
 								class="download-button"
-								on:click={() => window.open($imageDownloadUrl, '_blank')}
+								on:click={() => window.open(imageDownloadUrl, '_blank')}
 							>
 								Download Generated Image (PNG)
 							</button>
 						{/if}
 
-						{#if $svgDownloadUrl}
+						{#if svgDownloadUrl}
 							<button
 								class="download-button"
-								on:click={() => window.open($svgDownloadUrl, '_blank')}
+								on:click={() => window.open(svgDownloadUrl, '_blank')}
 							>
 								Download SVG File
 							</button>
 						{/if}
 
-						{#if $gcodeDownloadUrl}
+						{#if gcodeDownloadUrl}
 							<button
 								class="download-button"
-								on:click={() => window.open($gcodeDownloadUrl, '_blank')}
+								on:click={() => window.open(gcodeDownloadUrl, '_blank')}
 							>
 								Download G-Code File
 							</button>
 						{/if}
 
-						{#if $zipDownloadUrl}
+						{#if zipDownloadUrl}
 							<button
 								class="download-button"
-								on:click={() => window.open($zipDownloadUrl, '_blank')}
+								on:click={() => window.open(zipDownloadUrl, '_blank')}
 							>
 								Download All Files as ZIP
 							</button>
