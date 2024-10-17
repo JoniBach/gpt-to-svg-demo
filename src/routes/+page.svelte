@@ -1,5 +1,6 @@
 <script>
 	import { env } from '$env/dynamic/public';
+	import { onMount } from 'svelte';
 
 	// Extract API key and URL from environment variables
 	const apiKey = env.PUBLIC_API_KEY;
@@ -95,9 +96,28 @@
 			startTime = '';
 		}
 	};
+	// Call generateImage on Enter key press
+	const handleKeyPress = (event) => {
+		if (event.key === 'Enter' && !isLoading) {
+			generateImage();
+		}
+	};
+
+	// Add event listener for Enter key press
+	onMount(() => {
+		const inputElement = document.querySelector('.concept-input');
+		if (inputElement) {
+			inputElement.addEventListener('keypress', handleKeyPress);
+		}
+		return () => {
+			if (inputElement) {
+				inputElement.removeEventListener('keypress', handleKeyPress);
+			}
+		};
+	});
 </script>
 
-<div class={isDarkMode ? 'dark' : 'light'}>
+<body class="{isDarkMode ? 'dark' : 'light'} bg">
 	<div class="container">
 		<header>
 			<div class="header-content">
@@ -196,9 +216,18 @@
 			</div>
 		</main>
 	</div>
-</div>
+</body>
 
 <style>
+	@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap');
+
+	body {
+		font-family: 'Montserrat', sans-serif;
+		background-color: #333;
+		background: linear-gradient(135deg, #272727 60%, #1e1e1e);
+		background-repeat: no-repeat;
+		background-attachment: fixed;
+	}
 	.preview {
 		display: flex;
 	}
@@ -218,6 +247,12 @@
 		--button-text: #fff;
 		--error-bg: #3a1a1a;
 		--error-border: #e74c3c;
+	}
+	.bg {
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		height: 100vh;
 	}
 
 	.container {
@@ -259,7 +294,7 @@
 	}
 
 	.concept-input {
-		width: 100%;
+		width: auto;
 		padding: 0.5rem;
 		font-size: 1rem;
 		border: 2px solid var(--text-color);
@@ -306,6 +341,7 @@
 		flex-direction: column;
 		gap: 0.5rem;
 		margin-top: 1rem;
+		width: 100%;
 	}
 
 	.download-button {
