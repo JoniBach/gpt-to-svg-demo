@@ -2,11 +2,10 @@
 	import { env } from '$env/dynamic/public';
 	import { onMount } from 'svelte';
 
-	// Extract API key and URL from environment variables
 	const apiKey = env.PUBLIC_API_KEY;
 	const apiUrl = env.PUBLIC_API_URL;
+	const pingUrl = `${apiUrl}`.replace('generate', 'ping');  // Set the ping URL
 
-	// Variables to handle response data
 	let responseMessage = '';
 	let generatedPrompt = '';
 	let thumbnailUrl = '';
@@ -20,10 +19,11 @@
 	let startTime = '';
 	let finishTime = '';
 
-	let conceptInput = '';
+	let conceptInput = 'Default concept';
 	let isDarkMode = false;
+	let serverStarting = true;  // Indicates if the server is starting up
+	let serverReady = false;  // Indicates if the server is ready
 
-	// Load dark mode preference from local storage
 	if (typeof localStorage !== 'undefined') {
 		const savedTheme = localStorage.getItem('theme');
 		if (savedTheme === 'dark') {
@@ -33,13 +33,23 @@
 
 	const toggleTheme = () => {
 		isDarkMode = !isDarkMode;
-		// Save the user's preference in local storage
 		if (typeof localStorage !== 'undefined') {
 			localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
 		}
 	};
 
-	// Function to call the API
+	const pingServer = async () => {
+		try {
+			const response = await fetch(pingUrl);
+			if (response.ok) {
+				return true; // Server responded successfully
+			}
+		} catch (error) {
+			console.error('Ping failed:', error);
+		}
+		return false; // Server did not respond successfully
+	};
+
 	const generateImage = async () => {
 		isLoading = true;
 		progressMessage = 'Generating image, please wait...';
@@ -68,7 +78,6 @@
 				errorDetails = `Status Code: ${response.status}, Error Text: ${errorText}`;
 				isLoading = false;
 				startTime = '';
-
 				return;
 			}
 
@@ -96,53 +105,67 @@
 			startTime = '';
 		}
 	};
-	// Call generateImage on Enter key press
-	const handleKeyPress = (event) => {
-		if (event.key === 'Enter' && !isLoading) {
-			generateImage();
-		}
-	};
 
-	// Add event listener for Enter key press
-	onMount(() => {
-		const inputElement = document.querySelector('.concept-input');
-		if (inputElement) {
-			inputElement.addEventListener('keypress', handleKeyPress);
+	onMount(async () => {
+		// Immediately check server status on mount
+		let success = await pingServer();
+		if (success) {
+			serverStarting = false;
+			serverReady = true;
+		} else {
+			// Set up interval check every 10 seconds if server is not ready
+			const checkInterval = setInterval(async () => {
+				success = await pingServer();
+				if (success) {
+					clearInterval(checkInterval); // Stop checking when server is ready
+					clearTimeout(stopCheckTimeout); // Stop the timeout as well
+					serverStarting = false;
+					serverReady = true;
+				}
+			}, 10000); // Ping every 10 seconds
+
+			// Set a timeout to stop checking after 1 minute
+			const stopCheckTimeout = setTimeout(() => {
+				clearInterval(checkInterval); // Stop the interval after 1 minute
+				serverStarting = false; // Hide the "Starting server" message
+				progressMessage = 'Unable to reach the server. Please try again later.';
+			}, 60000); // 1 minute timeout
 		}
-		return () => {
-			if (inputElement) {
-				inputElement.removeEventListener('keypress', handleKeyPress);
-			}
-		};
 	});
 </script>
 
-<body class="{isDarkMode ? 'dark' : 'light'} bg">
+<body class="{!isDarkMode ? 'dark' : 'light'} bg">
 	<div class="container">
 		<header>
 			<div class="header-content">
 				<h1>Image Generation API</h1>
 				<button class="theme-toggle" on:click={toggleTheme}>
-					{isDarkMode ? '🌞 Light Mode' : '🌙 Dark Mode'}
+					{!isDarkMode ? '🌞 Light Mode' : '🌙 Dark Mode'}
 				</button>
 			</div>
 		</header>
 
 		<main>
+			<!-- Display startup or ready message -->
+			{#if serverStarting}
+				<p class="server-message">Starting server, please wait...</p>
+			{:else if serverReady}
+				<p class="server-message">Server is ready to go!</p>
+			{/if}
+
 			<div class="input-section">
 				<input
 					type="text"
 					placeholder="Enter your concept..."
 					bind:value={conceptInput}
 					class="concept-input"
-					disabled={isLoading}
+					disabled={isLoading || serverStarting}
 				/>
-				<button on:click={generateImage} class="generate-button" disabled={isLoading}>
+				<button on:click={generateImage} class="generate-button" disabled={isLoading || serverStarting}>
 					{isLoading ? 'Generating...' : 'Generate Image'}
 				</button>
 			</div>
 
-			<!-- Loading Marker -->
 			{#if isLoading}
 				<p class="loading">This could take a minute...</p>
 			{/if}
@@ -218,9 +241,16 @@
 	</div>
 </body>
 
+
 <style>
 	@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap');
-
+	/* Add styling for server message */
+	.server-message {
+		font-size: 1.2rem;
+		margin: 10px 0;
+		color: var(--text-color);
+		text-align: center;
+	}
 	body {
 		font-family: 'Montserrat', sans-serif;
 		background-color: #333;
